@@ -4,8 +4,11 @@
 [![MongoDB](https://img.shields.io/badge/Database-MongoDB-brightgreen?logo=mongodb)](https://www.mongodb.com/)
 [![License](https://img.shields.io/github/license/ob-adams/ticketing-app-dockerized)](LICENSE)
 [![Author](https://img.shields.io/badge/Author-ob--adams-blueviolet)](https://github.com/ob-adams)
+[![CI/CD](https://github.com/ob-adams/ticketing-app-dockerized/actions/workflows/docker-image.yml/badge.svg)](https://github.com/ob-adams/ticketing-app-dockerized/actions)
 
-This project transforms a previously built ticketing app (Next.js) into a fully containerized microservice environment using **Docker**, **MongoDB**, and **Mongo Express**. The web app is built using a **multi-stage Dockerfile** to optimize image size and performance.
+This project transforms a previously built ticketing app (Next.js) into a fully containerized environment using **Docker**, **MongoDB**, and **Mongo Express**. The web app is built using a **multi-stage Dockerfile** to optimize image size and performance.
+
+Images are automatically built and pushed to [Docker Hub](https://hub.docker.com/r/obobob/web-app-ticket) via **GitHub Actions CI/CD** when changes are pushed to the `main` branch.
 
 > **Repo:** [ob-adams/ticketing-app-dockerized](https://github.com/ob-adams/ticketing-app-dockerized)
 
@@ -24,6 +27,56 @@ This project transforms a previously built ticketing app (Next.js) into a fully 
 - [Mongo Express](https://github.com/mongo-express/mongo-express) (DB GUI)
 - [Docker](https://www.docker.com/)
 - [Docker Compose](https://docs.docker.com/compose/)
+- [GitHub Actions](https://github.com/features/actions) for CI/CD
+
+---
+
+## ⚙️ CI/CD – Docker Image Build & Push
+
+This project includes a GitHub Actions workflow that automates:
+
+- Docker image build (`web-app-ticket`)
+- Login to Docker Hub
+- Push to Docker Hub: [`obobob/web-app-ticket`](https://hub.docker.com/r/obobob/web-app-ticket)
+
+### 🔒 Secrets Required:
+
+Set the following in your repository under:
+**Settings → Secrets and variables → Actions**
+
+- `DOCKER_USERNAME`
+- `DOCKER_PASSWORD`
+
+### 🛠️ Workflow File: `.github/workflows/docker-image.yml`
+
+```yaml
+name: Build and Push Ticketing App
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: obobob/web-app-ticket:latest
+```
 
 ---
 
@@ -36,8 +89,6 @@ This app is deployed using Docker Compose and includes the following services:
 | `web-app-ticket` | Next.js app, built using multi-stage Dockerfile |
 | `mongodb`        | MongoDB database with secure credentials        |
 | `mongo-express`  | Web-based admin GUI for MongoDB                 |
-
-Environment variables are securely loaded from a `.env` file **excluded** from version control and image builds via `.gitignore` and `.dockerignore`.
 
 ---
 
@@ -53,37 +104,10 @@ ticketing-app/
 ├── package.json
 ├── public/
 ├── app/ or pages/
+├── .github/
+│   └── workflows/
+│       └── docker-image.yml
 └── ...
-```
-
----
-
-## 🛠️ Dockerfile (Multi-Stage Build)
-
-```Dockerfile
-# Stage 1: Install dependencies
-FROM node:20-alpine AS deps
-WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci
-
-# Stage 2: Build app
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-RUN npm run build
-
-# Stage 3: Run production server
-FROM node:20-alpine AS runner
-WORKDIR /app
-ENV NODE_ENV=production
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next ./.next
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package.json ./package.json
-EXPOSE 3000
-CMD ["npm", "start"]
 ```
 
 ---
@@ -112,7 +136,7 @@ ME_CONFIG_BASICAUTH_PASSWORD=secret
 ```yaml
 services:
   web-app:
-    image: web-app-ticket
+    image: obobob/web-app-ticket:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -154,6 +178,36 @@ volumes:
 
 ---
 
+## 🛠️ Dockerfile (Multi-Stage Build)
+
+```Dockerfile
+# Stage 1: Install dependencies
+FROM node:20-alpine AS deps
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Stage 2: Build app
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+RUN npm run build
+
+# Stage 3: Run production server
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+EXPOSE 3000
+CMD ["npm", "start"]
+```
+
+---
+
 ## 🧾 .dockerignore
 
 ```dockerignore
@@ -170,10 +224,10 @@ Dockerfile*
 
 ---
 
-## 🚀 How to Run
+## 🚀 How to Run Locally
 
 ```bash
-# Build and start containers
+# Build and start all containers
 docker compose up --build
 
 # Stop and remove containers
@@ -185,31 +239,33 @@ Visit Mongo Express: [http://localhost:8081](http://localhost:8081)
 
 ---
 
-## ☁️ Optional Deployment
+## ☁️ Optional Cloud Deployment
 
-You can push your built image to a container registry and deploy it on platforms like:
+If you prefer to deploy manually or externally:
 
-- **[Docker Hub](https://hub.docker.com/)**  
-  Example:
+### ➤ Docker Hub
 
-  ```bash
-  docker tag web-app-ticket obobob/web-app-ticket
-  docker push obobob/web-app-ticket
-  ```
+```bash
+docker tag web-app-ticket obobob/web-app-ticket
+docker push obobob/web-app-ticket
+```
 
-- **[Render](https://render.com/)**  
-  Configure a Docker service using your GitHub repo and `.env` settings.
+### ➤ Render
 
-- **[Fly.io](https://fly.io/)**  
-  For full Docker deployments with custom domains and persistent volumes.
+Connect this repo and configure a Docker service with `.env`.
+
+### ➤ Fly.io
+
+Ideal for deploying Docker images with custom domains and volumes.
 
 ---
 
 ## ✅ Final Notes
 
-- Make sure `.env` is **not committed** to your repo.
-- Build is optimized with multi-stage Dockerfile.
-- Shared Docker network allows seamless communication between containers without needing exposed ports for internal calls.
+- CI/CD builds and pushes the image to Docker Hub on every push to `main`.
+- Multi-stage Dockerfile improves performance and minimizes image size.
+- Environment variables are excluded from version control and builds.
+- All services communicate through Docker’s internal bridge network.
 
 ---
 
