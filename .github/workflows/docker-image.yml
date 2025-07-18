@@ -22,17 +22,17 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Log in to GitHub Container Registry
+      - name: Log in to GitHub Container Registry (GHCR)
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set lowercase image owner
+      - name: Set lowercase GitHub actor
         id: vars
         run: |
-          echo "owner_lowercase=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "actor_lowercase=$(echo '${{ github.actor }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker images
         uses: docker/build-push-action@v5
@@ -42,4 +42,4 @@ jobs:
           push: true
           tags: |
             obobob/web-app-ticket:latest
-            ghcr.io/${{ steps.vars.outputs.owner_lowercase }}/web-app-ticket:latest
+            ghcr.io/${{ steps.vars.outputs.actor_lowercase }}/web-app-ticket:latest
