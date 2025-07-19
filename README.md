@@ -14,9 +14,11 @@ Images are automatically built and pushed to [Docker Hub](https://hub.docker.com
 
 ---
 
-## 📷 Screenshot
+## 📷 Screenshots
 
 > ![Ticketing App Screenshot](./docs/screenshot.png)
+> ![Ticketing App Screenshot](./docs/screenshot1.png)
+> ![Ticketing App Screenshot](./docs/screenshot2.png)
 
 ---
 
